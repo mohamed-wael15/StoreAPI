@@ -11,12 +11,13 @@ namespace Store.Web.Controllers
     {
         private readonly IPaymentService _paymentService;
         private readonly ILogger<PaymentController> _logger;
-        const string endpointSecret = "whsec_955922179f3d21dc8f4f3fbaf85433a226970d4d19d096fca5ea48075b44e8f6";
+        private readonly string _endpointSecret;
 
-        public PaymentController(IPaymentService paymentService, ILogger<PaymentController> logger)
+        public PaymentController(IPaymentService paymentService, ILogger<PaymentController> logger, IConfiguration configuration)
         {
             _paymentService = paymentService;
             _logger = logger;
+            _endpointSecret = configuration["Stripe:WebhookSecret"];
         }
 
         [HttpPost]
@@ -30,7 +31,7 @@ namespace Store.Web.Controllers
             try
             {
                 var stripeEvent = EventUtility.ConstructEvent(json,
-                    Request.Headers["Stripe-Signature"], endpointSecret);
+                    Request.Headers["Stripe-Signature"], _endpointSecret);
 
                 PaymentIntent paymentIntent;
 

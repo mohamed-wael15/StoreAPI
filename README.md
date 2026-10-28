@@ -65,7 +65,7 @@ cd StoreAPI
 
 1. **Connection strings** — `Store.Web/appsettings.json` points to a local SQL Server instance (Windows authentication)
    and to Redis on `localhost`. Adjust them if your setup is different.
-2. **Secrets** — the JWT key and Stripe keys are intentionally empty in `appsettings.json`.
+2. **Secrets** — the JWT key and the Stripe keys (including the webhook signing secret) are intentionally empty in `appsettings.json`.
    Set them with user secrets (never commit them):
 
    ```bash
@@ -73,7 +73,10 @@ cd StoreAPI
    dotnet user-secrets set "Token:Key" "<random string, at least 32 characters>" --project Store.Web
    dotnet user-secrets set "Stripe:Secretkey" "<your sk_test_ key>" --project Store.Web
    dotnet user-secrets set "Stripe:publishableKey" "<your pk_test_ key>" --project Store.Web
+   dotnet user-secrets set "Stripe:WebhookSecret" "<your whsec_ signing secret>" --project Store.Web
    ```
+
+   For local webhook testing, `stripe listen --forward-to <your URL>/api/Payment/webhook` prints the `whsec_` secret to use.
 
    Environment variables work as well, e.g. `Token__Key` and `Stripe__Secretkey`.
 3. **Run** — databases are migrated and seeded automatically on startup:

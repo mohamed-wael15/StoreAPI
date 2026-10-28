@@ -1,127 +1,92 @@
-▶ FoodStore🍔
-----------------------------------
-▶ Overview👀
+# StoreAPI — E-commerce REST API
 
-   - This is a complete platform dedicated to popular foods, built using the .NET Web API. The platform allows users to browse, search and purchase foods while providing a powerful admin panel to manage products, orders and users.
+A REST API for an online food store, built with **ASP.NET Core 8 Web API** as a **training project**.
+It covers the back-end flow of a shop: catalog browsing with filtering and paging, a Redis-backed
+basket, JWT authentication, orders, and Stripe payments with webhook handling.
 
+`C#` · `ASP.NET Core 8 Web API` · `EF Core` · `SQL Server` · `ASP.NET Core Identity` · `JWT` · `Redis` · `Stripe` · `AutoMapper` · `Swagger`
 
-▶ Features 
--------------------------------------
-   - User Authentication: Secure login and registration system.
-   - Product Management: Get all brands, Get all Types, Get all Products,Get all Product by Id.
-   - Shopping Cart: Real-time cart management with the ability to add, update, and remove items.
-   - Order Management: Process and manage customer orders.
-   - User Manager : Manage Food products, orders, and user information.
-   - Payment Integration: Secure payment handling for Food purchases.
+---
 
-▶ Technologies used
------------------------------------
- The project was developed using the following technologies and tools:
+## Architecture
 
- ◉ Programming language and databases:
+The solution is split into four projects with one-way dependencies:
 
-   - C#: The basic programming language for developing the project.
+```
+Store.Web         → API controllers, middleware, DI setup, Swagger
+Store.service     → business services (products, basket, orders, payments, tokens, caching), DTOs, AutoMapper profiles
+Store.Repository  → generic repository, Unit of Work, Specification pattern, Redis basket repository, seeding
+Store.Data        → entities, DbContexts, EF Core configurations and migrations
+```
 
-   - SQL Server: The database used to store data.
+Main techniques used:
 
- ◉ Framework:
+- **Specification pattern** for filtering, sorting, searching and paging products, and for order queries
+- **Generic repository + Unit of Work** on top of EF Core
+- **Two databases**: one for store data, one for ASP.NET Core Identity
+- **Redis** for the customer basket and for response caching (a `[Cache(seconds)]` action filter)
+- **Global exception-handling middleware** with a consistent error response
+- **Stripe** payment intents, and a webhook that marks orders as paid or failed
+- Migrations and seed data (brands, types, products, delivery methods, a test user) applied on startup
 
-   - ASP.NET Core Web API: To develop API interfaces.
+---
 
- ◉ Data management:
+## Endpoints
 
-   - Entity Framework Core: To deal with the database using the Object-Relational Mapping (ORM) approach.
+All routes follow `api/{controller}/{action}`.
 
-   - Specification Pattern: To simplify and target complex queries.
+| Area | Method | Endpoint | Notes |
+|---|---|---|---|
+| Account | POST | `/api/Account/Login` | returns a JWT |
+| Account | POST | `/api/Account/Register` | |
+| Account | GET | `/api/Account/GetCurrentUserDetails` | JWT required |
+| Products | GET | `/api/Product/GetAllProducts` | JWT required · query: `BrandId`, `TypeId`, `Sort`, `Search`, `PageIndex`, `PageSize` · cached |
+| Products | GET | `/api/Product/GetProductById?id=` | JWT required |
+| Products | GET | `/api/Product/GetAllBrands` · `/api/Product/GetAllTypes` | JWT required |
+| Basket | GET / POST / DELETE | `/api/Basket/GetBasketAsync/{id}` · `UpdateBasketAsync` · `DeleteBasketAsync/{id}` | stored in Redis |
+| Orders | POST | `/api/Order/CreateOrderAsync` | uses the user's email claim |
+| Orders | GET | `/api/Order/GetAllOrderForUserAsync` · `GetOrderByIdAsync?id=` | uses the user's email claim |
+| Orders | GET | `/api/Order/GetAllDeliveryMethodsAsync` | |
+| Payment | POST | `/api/Payment/CreateOrUpdatePaymentIntent` | creates or updates a Stripe payment intent for a basket |
+| Payment | POST | `/api/Payment/webhook` | Stripe webhook (`payment_intent.succeeded` / `payment_failed`) |
 
- ◉ Authentication and security:
+The full contract is available in Swagger when running in Development.
 
-   - JWT (JSON Web Token): To authenticate users and secure access to interfaces.
-     
- ◉ Performance and experience improvement:
+---
 
-   - Middleware: To manage requests and responses between the server and the client.
+## Running locally
 
-   - Caching: Improve performance using temporary data storage.
+**Prerequisites:** .NET 8 SDK, SQL Server (or LocalDB), Redis, and a Stripe account in test mode.
 
-   - Redis: A high-performance caching system.
+```bash
+git clone https://github.com/mohamed-wael15/StoreAPI.git
+cd StoreAPI
+```
 
-  ◉ Data management and presentation:
+1. **Connection strings** — `Store.Web/appsettings.json` points to a local SQL Server instance (Windows authentication)
+   and to Redis on `localhost`. Adjust them if your setup is different.
+2. **Secrets** — the JWT key and Stripe keys are intentionally empty in `appsettings.json`.
+   Set them with user secrets (never commit them):
 
-   - AutoMapper: To facilitate data transformation between entities and presentation interfaces.
-     
-  ◉ Electronic payment:
+   ```bash
+   dotnet user-secrets init --project Store.Web
+   dotnet user-secrets set "Token:Key" "<random string, at least 32 characters>" --project Store.Web
+   dotnet user-secrets set "Stripe:Secretkey" "<your sk_test_ key>" --project Store.Web
+   dotnet user-secrets set "Stripe:publishableKey" "<your pk_test_ key>" --project Store.Web
+   ```
 
-   - Stripe API: To manage electronic payment processes easily and securely.
-     
-▶ Key features of the project
+   Environment variables work as well, e.g. `Token__Key` and `Stripe__Secretkey`.
+3. **Run** — databases are migrated and seeded automatically on startup:
 
-  - Code organization: Using the Specification Pattern.
-  
-  - Comprehensive documentation: with tools like Swagger.
+   ```bash
+   dotnet run --project Store.Web
+   ```
 
-  - Performance optimization: with caching and Redis.
-    
-  - Secure and easy payment: with Stripe.
+   Then open `/swagger` on the URL shown in the console.
 
-▶ Getting Started
------------------------------------
-Prerequisites
+---
 
-Ensure you have the following installed on your machine:
+## Notes
 
-  - .NET SDK 
-  - SQL Server 
-  - Redis 
-  - Stripe Account
-
-Setup Instructions
------------------------------------
-  1-Clone the Repository
-  
-   Clone the project to your local machine:
-    
-      git clone https://github.com/mohamed-wael15/StoreAPI.git
-  
-  2-Install Dependencies
- 
-   Restore the required dependencies:
-   
-     dotnet restore
-     
- 3-Database Setup
-
- - Update the connection string in appsettings.json to point to your SQL Server instance.
- - Run the following command to apply migrations and set up the database:
-   
-       dotnet ef database update
-
-  4-Configure Redis
-
-  - Ensure Redis is running on your machine or a server.
-  - Update the Redis connection string in appsettings.json.
-
- 5- Configure Stripe
-    - Add your Stripe API keys in appsettings.json under the relevant section:
-    
-        {
-           "Stripe": {
-               "PublishableKey": "<Your-Publishable-Key>",
-               "SecretKey": "<Your-Secret-Key>"
-            }
-         }
-
-  6- Run the Application
-    - Use the following command to start the API:
-    
-        dotnet run
-
-  7-Access the API
-    - The API will be available at:
-           http://localhost:<port> (default: 5000 or 5001 for HTTPS)
-    - Open Swagger for API documentation and testing:
-           http://localhost:<port>/swagger
-
-نسخ الكود
-
-
+- This is a learning project: there is no front end and no automated tests.
+- Product endpoints require a logged-in user, so register and log in first, then send the token as `Bearer <token>`.
